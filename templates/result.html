@@ -401,12 +401,75 @@
 
   <!-- アクションボタン（完了後に表示） -->
   <div class="actions" id="actions" style="display:none">
-    <button class="btn-primary" onclick="window.print()">
+    <button class="btn-primary" id="genTweetBtn" onclick="generateTweet()">
+      <span>✍️</span><span>この戦略でツイートを生成する</span>
+    </button>
+    <button class="btn-secondary" onclick="window.print()">
       <span>🖨️</span><span>分析結果を印刷・保存</span>
     </button>
     <a href="/" class="btn-secondary">
       <span>🔄</span><span>別のアカウントを分析する</span>
     </a>
+  </div>
+
+  <!-- ツイート生成カード -->
+  <div id="tweetSection" style="display:none;margin-top:24px">
+    <div class="result-card" style="padding:32px">
+      <h2 style="font-size:18px;font-weight:700;color:var(--x-blue);margin-bottom:20px;display:flex;align-items:center;gap:8px">
+        ✍️ 生成されたツイート
+      </h2>
+
+      <!-- ローディング -->
+      <div id="tweetLoading" style="text-align:center;padding:30px;display:none">
+        <div style="font-size:32px;animation:spin-pulse 2s infinite">⚡</div>
+        <p style="color:var(--text-muted);margin-top:12px;font-size:14px">戦略を反映したツイートを生成中...</p>
+      </div>
+
+      <!-- X風プレビュー -->
+      <div id="tweetPreview" style="display:none">
+        <div style="background:#0f0f0f;border:1px solid rgba(255,255,255,0.08);border-radius:16px;overflow:hidden">
+          <div style="display:flex;align-items:center;gap:12px;padding:16px 16px 0">
+            <div style="width:44px;height:44px;border-radius:50%;background:linear-gradient(135deg,#1d9bf0,#0a85d1);display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0">𝕏</div>
+            <div>
+              <div style="font-weight:700;color:#e7e9ea;font-size:15px" id="tweetAccName">アカウント名</div>
+              <div style="color:#71767b;font-size:14px" id="tweetAccUrl">@username</div>
+            </div>
+          </div>
+          <div id="tweetBody" style="padding:12px 16px;color:#e7e9ea;font-size:15px;line-height:1.75;white-space:pre-wrap;word-break:break-word"></div>
+          <div style="padding:8px 16px 14px;color:#71767b;font-size:13px;border-bottom:1px solid rgba(255,255,255,0.08)" id="tweetTime"></div>
+          <div style="display:flex;justify-content:space-around;padding:4px 0">
+            <span style="color:#71767b;font-size:13px;padding:8px">💬 返信</span>
+            <span style="color:#71767b;font-size:13px;padding:8px">🔁 RT</span>
+            <span style="color:#71767b;font-size:13px;padding:8px">❤️ いいね</span>
+          </div>
+        </div>
+
+        <!-- 文字数 -->
+        <div style="display:flex;justify-content:space-between;align-items:center;background:#161616;border:1px solid rgba(255,255,255,0.08);border-radius:10px;padding:12px 16px;margin-top:12px">
+          <span style="color:#71767b;font-size:13px">文字数</span>
+          <span id="tweetCharCount" style="font-size:18px;font-weight:700;color:#4ade80"></span>
+        </div>
+
+        <!-- 操作ボタン -->
+        <div style="display:flex;flex-direction:column;gap:10px;margin-top:14px">
+          <button onclick="postTweet()" id="postBtn" style="display:flex;align-items:center;justify-content:center;gap:8px;background:var(--x-blue);color:white;border:none;border-radius:50px;padding:15px;font-family:inherit;font-size:15px;font-weight:700;cursor:pointer;width:100%">
+            🚀 今すぐ投稿する
+          </button>
+          <button onclick="generateTweet()" style="display:flex;align-items:center;justify-content:center;gap:8px;background:#161616;border:1px solid rgba(255,255,255,0.08);color:#e7e9ea;border-radius:50px;padding:14px;font-family:inherit;font-size:14px;cursor:pointer;width:100%">
+            🔄 別パターンを生成
+          </button>
+          <button onclick="copyTweet()" id="copyBtn" style="display:flex;align-items:center;justify-content:center;gap:8px;background:#161616;border:1px solid rgba(255,255,255,0.08);color:#71767b;border-radius:50px;padding:14px;font-family:inherit;font-size:14px;cursor:pointer;width:100%">
+            📋 テキストをコピー
+          </button>
+        </div>
+
+        <!-- 結果メッセージ -->
+        <div id="postResult" style="display:none;text-align:center;padding:16px;border-radius:12px;margin-top:12px;font-size:14px"></div>
+      </div>
+
+      <!-- エラー -->
+      <div id="tweetError" style="display:none;background:#1a0505;border:1px solid #f87171;color:#fca5a5;border-radius:10px;padding:14px;font-size:13px"></div>
+    </div>
   </div>
 
 </div><!-- /container -->
@@ -489,6 +552,7 @@ async function startAnalysis() {
   }
 
   const data = JSON.parse(raw);
+  currentAnalysisData = data;
 
   // ヘッダー更新
   const username = extractUsername(data.url || '');
@@ -586,6 +650,119 @@ async function startAnalysis() {
 }
 
 startAnalysis();
+
+let currentAnalysisData = null;
+let currentTweetText = '';
+
+async function generateTweet() {
+  if (!currentAnalysisData) return;
+
+  document.getElementById('tweetSection').style.display = 'block';
+  document.getElementById('tweetLoading').style.display = 'block';
+  document.getElementById('tweetPreview').style.display = 'none';
+  document.getElementById('tweetError').style.display = 'none';
+  document.getElementById('postResult').style.display = 'none';
+  document.getElementById('genTweetBtn').disabled = true;
+  document.getElementById('genTweetBtn').textContent = '生成中...';
+
+  window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
+
+  try {
+    const analysisText = document.getElementById('resultContent').innerText;
+    const res = await fetch('/api/generate-tweet', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        analysis: analysisText,
+        niche: currentAnalysisData.niche || '',
+        target_audience: currentAnalysisData.target_audience || '',
+        url: currentAnalysisData.url || ''
+      })
+    });
+    const data = await res.json();
+    if (data.error) throw new Error(data.error);
+
+    currentTweetText = data.text;
+
+    // プレビュー表示
+    document.getElementById('tweetBody').textContent = data.text;
+    const username = extractUsername(currentAnalysisData.url || '');
+    document.getElementById('tweetAccName').textContent = username.replace('@','') || 'アカウント';
+    document.getElementById('tweetAccUrl').textContent = username;
+    const now = new Date();
+    document.getElementById('tweetTime').textContent =
+      `${now.getFullYear()}年${now.getMonth()+1}月${now.getDate()}日`;
+
+    const countEl = document.getElementById('tweetCharCount');
+    countEl.textContent = data.char_count + ' / 140文字';
+    countEl.style.color = data.char_count <= 140 ? '#4ade80' : data.char_count <= 280 ? '#facc15' : '#f87171';
+
+    document.getElementById('tweetLoading').style.display = 'none';
+    document.getElementById('tweetPreview').style.display = 'block';
+  } catch(e) {
+    document.getElementById('tweetLoading').style.display = 'none';
+    document.getElementById('tweetError').style.display = 'block';
+    document.getElementById('tweetError').textContent = 'エラー: ' + e.message;
+  } finally {
+    document.getElementById('genTweetBtn').disabled = false;
+    document.getElementById('genTweetBtn').innerHTML = '<span>✍️</span><span>この戦略でツイートを生成する</span>';
+    window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
+  }
+}
+
+async function postTweet() {
+  if (!currentTweetText) return;
+  const btn = document.getElementById('postBtn');
+  btn.disabled = true;
+  btn.textContent = '投稿中...';
+  document.getElementById('postResult').style.display = 'none';
+
+  try {
+    const res = await fetch('/api/post-tweet', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ text: currentTweetText })
+    });
+    const data = await res.json();
+    const resultEl = document.getElementById('postResult');
+    resultEl.style.display = 'block';
+    if (data.success) {
+      resultEl.style.background = '#0a1f0a';
+      resultEl.style.border = '1px solid #4ade80';
+      resultEl.style.color = '#4ade80';
+      resultEl.textContent = '✅ 投稿しました！ tweet_id: ' + data.tweet_id;
+    } else {
+      resultEl.style.background = '#1a0505';
+      resultEl.style.border = '1px solid #f87171';
+      resultEl.style.color = '#fca5a5';
+      resultEl.textContent = '❌ ' + (data.error || '投稿に失敗しました');
+    }
+  } catch(e) {
+    const resultEl = document.getElementById('postResult');
+    resultEl.style.display = 'block';
+    resultEl.style.background = '#1a0505';
+    resultEl.style.border = '1px solid #f87171';
+    resultEl.style.color = '#fca5a5';
+    resultEl.textContent = '❌ ' + e.message;
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '🚀 今すぐ投稿する';
+  }
+}
+
+function copyTweet() {
+  navigator.clipboard.writeText(currentTweetText).then(() => {
+    const btn = document.getElementById('copyBtn');
+    btn.textContent = '✅ コピーしました！';
+    btn.style.color = '#4ade80';
+    btn.style.borderColor = '#4ade80';
+    setTimeout(() => {
+      btn.textContent = '📋 テキストをコピー';
+      btn.style.color = '#71767b';
+      btn.style.borderColor = 'rgba(255,255,255,0.08)';
+    }, 2000);
+  });
+}
 </script>
 </body>
 </html>

@@ -186,6 +186,81 @@ def result():
     return render_template("result.html")
 
 
+X_API_KEY             = os.environ.get("X_API_KEY", "")
+X_API_SECRET          = os.environ.get("X_API_SECRET", "")
+X_ACCESS_TOKEN        = os.environ.get("X_ACCESS_TOKEN", "")
+X_ACCESS_TOKEN_SECRET = os.environ.get("X_ACCESS_TOKEN_SECRET", "")
+
+
+@app.route("/api/generate-tweet", methods=["POST"])
+def generate_tweet():
+    if not GEMINI_API_KEY:
+        return json.dumps({"error": "GEMINI_API_KEY が設定されていません"}), 500
+
+    data = request.json
+    analysis = data.get("analysis", "")
+    niche = data.get("niche", "")
+    target = data.get("target_audience", "")
+    url = data.get("url", "")
+
+    prompt = f"""あなたはXのバズりツイート専門家です。
+以下のXアカウント分析レポートを読み、この戦略に基づいた最適なツイートを1つ作成してください。
+
+【アカウント情報】
+ジャンル：{niche}
+ターゲット層：{target}
+アカウントURL：{url}
+
+【分析レポート（要約）】
+{analysis[:1500]}
+
+【ツイート作成条件】
+- 上記の分析で提案された「バズりやすいツイートの型」や「投稿戦略」を活用する
+- 140文字以内（日本語）
+- 推奨ハッシュタグを2〜3個含める
+- エンゲージメントを促すCTA（質問・保存を促す文言など）を入れる
+- 絵文字を効果的に使う
+
+ツイート本文のみを出力してください（説明・前置き不要）。"""
+
+    try:
+        from google import genai as google_genai
+        client = google_genai.Client(api_key=GEMINI_API_KEY)
+        resp = client.models.generate_content(
+            model="gemini-2.5-flash-lite",
+            contents=prompt
+        )
+        text = resp.text.strip()
+        return json.dumps({"text": text, "char_count": len(text)})
+    except Exception as e:
+        return json.dumps({"error": str(e)}), 500
+
+
+@app.route("/api/post-tweet", methods=["POST"])
+def post_tweet():
+    if not all([X_API_KEY, X_API_SECRET, X_ACCESS_TOKEN, X_ACCESS_TOKEN_SECRET]):
+        return json.dumps({"error": "X API キーが設定されていません"}), 500
+
+    data = request.json
+    text = data.get("text", "").strip()
+    if not text:
+        return json.dumps({"error": "ツイート本文が空です"}), 400
+
+    try:
+        import tweepy
+        client = tweepy.Client(
+            consumer_key=X_API_KEY,
+            consumer_secret=X_API_SECRET,
+            access_token=X_ACCESS_TOKEN,
+            access_token_secret=X_ACCESS_TOKEN_SECRET
+        )
+        response = client.create_tweet(text=text)
+        tweet_id = response.data["id"]
+        return json.dumps({"success": True, "tweet_id": tweet_id})
+    except Exception as e:
+        return json.dumps({"error": str(e)}), 500
+
+
 @app.route("/api/analyze", methods=["POST"])
 def analyze():
     data = request.json
