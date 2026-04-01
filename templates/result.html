@@ -1,0 +1,591 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>分析結果 | X インプレッション最適化AI</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@300;400;500;700;900&display=swap');
+
+  :root {
+    --x-blue: #1d9bf0;
+    --x-blue-glow: rgba(29,155,240,0.25);
+    --bg: #000000;
+    --surface: #0f0f0f;
+    --surface2: #161616;
+    --border: rgba(255,255,255,0.08);
+    --text: #e7e9ea;
+    --text-muted: #71767b;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: 'Noto Sans JP', -apple-system, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    padding: 0 0 60px;
+  }
+
+  .bg-glow {
+    position: fixed;
+    top: -200px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 800px;
+    height: 500px;
+    background: radial-gradient(ellipse, rgba(29,155,240,0.10) 0%, transparent 70%);
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  /* ===== NAV ===== */
+  nav {
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    background: rgba(0,0,0,0.9);
+    backdrop-filter: blur(20px);
+    border-bottom: 1px solid var(--border);
+    padding: 14px 24px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .nav-logo {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-weight: 700;
+    font-size: 16px;
+    color: var(--text);
+    text-decoration: none;
+  }
+
+  .nav-logo .x-icon {
+    width: 28px;
+    height: 28px;
+    background: var(--x-blue);
+    border-radius: 7px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 16px;
+    font-weight: 900;
+  }
+
+  .btn-back {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    color: var(--text-muted);
+    font-family: inherit;
+    font-size: 13px;
+    padding: 8px 16px;
+    border-radius: 20px;
+    cursor: pointer;
+    transition: all 0.2s;
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .btn-back:hover { color: var(--text); border-color: rgba(255,255,255,0.2); }
+
+  /* ===== CONTAINER ===== */
+  .container {
+    position: relative;
+    z-index: 1;
+    max-width: 760px;
+    margin: 0 auto;
+    padding: 40px 24px 0;
+  }
+
+  /* ===== HEADER ===== */
+  .result-header {
+    text-align: center;
+    margin-bottom: 36px;
+  }
+
+  .result-header h1 {
+    font-size: 24px;
+    font-weight: 900;
+    margin-bottom: 6px;
+  }
+
+  .result-header h1 .username {
+    color: var(--x-blue);
+  }
+
+  .result-header p {
+    font-size: 14px;
+    color: var(--text-muted);
+  }
+
+  /* ===== INFO CHIPS ===== */
+  .info-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    justify-content: center;
+    margin-bottom: 32px;
+  }
+
+  .chip {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 5px 14px;
+    font-size: 12px;
+    color: var(--text-muted);
+  }
+
+  .chip .label { color: var(--x-blue); font-weight: 600; }
+
+  /* ===== RESULT CARD ===== */
+  .result-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 24px;
+    padding: 40px;
+    margin-bottom: 24px;
+    min-height: 200px;
+  }
+
+  @media (max-width: 480px) { .result-card { padding: 24px 20px; } }
+
+  /* ===== LOADING ===== */
+  .loading-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 60px 20px;
+    gap: 20px;
+  }
+
+  .loading-icon {
+    font-size: 56px;
+    animation: spin-pulse 2.5s ease-in-out infinite;
+  }
+
+  @keyframes spin-pulse {
+    0%, 100% { transform: scale(1) rotate(0deg); opacity: 1; }
+    50% { transform: scale(1.1) rotate(5deg); opacity: 0.85; }
+  }
+
+  .loading-title {
+    font-size: 20px;
+    font-weight: 700;
+  }
+
+  .loading-subtitle {
+    font-size: 14px;
+    color: var(--text-muted);
+  }
+
+  .loading-steps {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    width: 100%;
+    max-width: 320px;
+    margin-top: 8px;
+  }
+
+  .step {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 13px;
+    color: var(--text-muted);
+    padding: 8px 14px;
+    background: var(--surface2);
+    border-radius: 10px;
+    border: 1px solid var(--border);
+    transition: all 0.4s;
+  }
+
+  .step.active {
+    color: var(--x-blue);
+    border-color: rgba(29,155,240,0.3);
+    background: rgba(29,155,240,0.06);
+  }
+
+  .step.done { color: #4ade80; border-color: rgba(74,222,128,0.2); }
+
+  .step-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--border);
+    flex-shrink: 0;
+    transition: all 0.4s;
+  }
+
+  .step.active .step-dot {
+    background: var(--x-blue);
+    box-shadow: 0 0 8px var(--x-blue);
+    animation: pulse-dot 1s ease-in-out infinite;
+  }
+
+  .step.done .step-dot { background: #4ade80; }
+
+  @keyframes pulse-dot { 50% { opacity: 0.4; } }
+
+  /* ===== RESULT TEXT ===== */
+  .result-text {
+    font-size: 15px;
+    line-height: 1.85;
+    color: var(--text);
+  }
+
+  .result-text h2 {
+    font-size: 19px;
+    font-weight: 700;
+    color: var(--x-blue);
+    margin: 32px 0 14px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid rgba(29,155,240,0.2);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .result-text h2:first-child { margin-top: 0; }
+
+  .result-text p { margin-bottom: 12px; }
+
+  .result-text ul, .result-text ol {
+    padding-left: 22px;
+    margin-bottom: 12px;
+  }
+
+  .result-text li { margin-bottom: 6px; }
+
+  .result-text strong { color: #fff; font-weight: 700; }
+
+  .result-text hr {
+    border: none;
+    border-top: 1px solid var(--border);
+    margin: 24px 0;
+  }
+
+  .result-text blockquote {
+    background: rgba(29,155,240,0.06);
+    border-left: 3px solid var(--x-blue);
+    padding: 12px 16px;
+    border-radius: 0 10px 10px 0;
+    margin: 12px 0;
+    font-style: italic;
+    color: rgba(231,233,234,0.8);
+  }
+
+  /* タイピングカーソル */
+  .typing-cursor {
+    display: inline-block;
+    width: 2px;
+    height: 1.1em;
+    background: var(--x-blue);
+    margin-left: 2px;
+    vertical-align: middle;
+    animation: blink 0.8s step-end infinite;
+  }
+
+  @keyframes blink { 50% { opacity: 0; } }
+
+  /* ===== ACTIONS ===== */
+  .actions {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    margin-top: 8px;
+  }
+
+  .btn-primary {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    background: var(--x-blue);
+    color: white;
+    border: none;
+    border-radius: 50px;
+    padding: 15px 28px;
+    font-family: inherit;
+    font-size: 15px;
+    font-weight: 700;
+    cursor: pointer;
+    text-decoration: none;
+    transition: all 0.2s;
+    box-shadow: 0 4px 20px rgba(29,155,240,0.3);
+  }
+
+  .btn-primary:hover { filter: brightness(1.1); transform: translateY(-1px); }
+
+  .btn-secondary {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    color: var(--text);
+    border-radius: 50px;
+    padding: 14px 28px;
+    font-family: inherit;
+    font-size: 15px;
+    font-weight: 500;
+    cursor: pointer;
+    text-decoration: none;
+    transition: all 0.2s;
+  }
+
+  .btn-secondary:hover { border-color: rgba(255,255,255,0.2); }
+</style>
+</head>
+<body>
+
+<div class="bg-glow"></div>
+
+<!-- NAV -->
+<nav>
+  <a href="/" class="nav-logo">
+    <div class="x-icon">𝕏</div>
+    <span>インプレッション最適化AI</span>
+  </a>
+  <a href="/" class="btn-back">← 戻る</a>
+</nav>
+
+<div class="container">
+
+  <!-- HEADER -->
+  <div class="result-header">
+    <h1>📊 <span class="username" id="usernameDisplay">@アカウント</span> の分析レポート</h1>
+    <p>Claude AIによる個別最適化戦略</p>
+  </div>
+
+  <!-- INFO CHIPS -->
+  <div class="info-chips" id="infoChips">
+    <!-- JSで動的生成 -->
+  </div>
+
+  <!-- RESULT CARD -->
+  <div class="result-card">
+    <!-- ローディング -->
+    <div class="loading-state" id="loadingState">
+      <div class="loading-icon">🔍</div>
+      <div class="loading-title">AIがあなたのXを分析中...</div>
+      <div class="loading-subtitle">最適な戦略を計算しています</div>
+      <div class="loading-steps">
+        <div class="step active" id="step1">
+          <div class="step-dot"></div>
+          <span>プロフィール情報を解析中</span>
+        </div>
+        <div class="step" id="step2">
+          <div class="step-dot"></div>
+          <span>競合・トレンドと比較中</span>
+        </div>
+        <div class="step" id="step3">
+          <div class="step-dot"></div>
+          <span>最適化プランを生成中</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- 結果テキスト -->
+    <div class="result-text" id="resultContent" style="display:none"></div>
+  </div>
+
+  <!-- アクションボタン（完了後に表示） -->
+  <div class="actions" id="actions" style="display:none">
+    <button class="btn-primary" onclick="window.print()">
+      <span>🖨️</span><span>分析結果を印刷・保存</span>
+    </button>
+    <a href="/" class="btn-secondary">
+      <span>🔄</span><span>別のアカウントを分析する</span>
+    </a>
+  </div>
+
+</div><!-- /container -->
+
+<script>
+// マークダウン簡易パーサー
+function parseMarkdown(text) {
+  return text
+    .replace(/^---$/gm, '<hr>')
+    .replace(/^## (.+)$/gm, '<h2>$1</h2>')
+    .replace(/^### (.+)$/gm, '<h3 style="font-size:16px;font-weight:700;margin:20px 0 8px;color:#e7e9ea;">$1</h3>')
+    .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+    .replace(/^- (.+)$/gm, '<li>$1</li>')
+    .replace(/^• (.+)$/gm, '<li>$1</li>')
+    .replace(/^・(.+)$/gm, '<li>$1</li>')
+    .replace(/^(\d+)\. (.+)$/gm, '<li><strong>$1.</strong> $2</li>')
+    .replace(/(<li>[\s\S]*?<\/li>)+/g, match => `<ul>${match}</ul>`)
+    .replace(/\n\n/g, '</p><p>')
+    .replace(/^(?!<[hup\/]|<li|<ul|<ol|<hr)(.+)$/gm, '<p>$1</p>')
+    .replace(/<p><\/p>/g, '')
+    .replace(/<p>(<[hul])/g, '$1')
+    .replace(/(<\/[hul][^>]*>)<\/p>/g, '$1');
+}
+
+// URLからユーザー名を取得
+function extractUsername(url) {
+  try {
+    const match = url.match(/x\.com\/([^\/\?]+)/);
+    return match ? '@' + match[1] : url;
+  } catch {
+    return url;
+  }
+}
+
+// チップ生成
+function createChips(data) {
+  const chips = [
+    { label: 'URL', value: extractUsername(data.url || '') },
+    { label: 'ジャンル', value: data.niche || '未入力' },
+    { label: 'フォロワー', value: data.followers !== '不明' ? data.followers : '未入力' },
+    { label: '投稿頻度', value: (data.post_frequency || '不明') + '回/週' },
+  ].filter(c => c.value && c.value !== '未入力');
+
+  const container = document.getElementById('infoChips');
+  chips.forEach(c => {
+    const chip = document.createElement('div');
+    chip.className = 'chip';
+    chip.innerHTML = `<span class="label">${c.label}：</span>${c.value}`;
+    container.appendChild(chip);
+  });
+}
+
+// ローディングステップ演出
+let stepTimer;
+function animateSteps() {
+  const steps = ['step1', 'step2', 'step3'];
+  let current = 0;
+
+  function advance() {
+    if (current > 0) {
+      const prev = document.getElementById(steps[current - 1]);
+      if (prev) { prev.classList.remove('active'); prev.classList.add('done'); }
+    }
+    if (current < steps.length) {
+      const cur = document.getElementById(steps[current]);
+      if (cur) cur.classList.add('active');
+      current++;
+      stepTimer = setTimeout(advance, 3000);
+    }
+  }
+  advance();
+}
+
+// メイン処理
+async function startAnalysis() {
+  const raw = sessionStorage.getItem('analyzeData');
+  if (!raw) {
+    window.location.href = '/';
+    return;
+  }
+
+  const data = JSON.parse(raw);
+
+  // ヘッダー更新
+  const username = extractUsername(data.url || '');
+  document.getElementById('usernameDisplay').textContent = username;
+  document.title = `${username} の分析結果 | X インプレッション最適化AI`;
+
+  // チップ生成
+  createChips(data);
+
+  // ローディングアニメーション開始
+  animateSteps();
+
+  try {
+    const response = await fetch('/api/analyze', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data)
+    });
+
+    if (!response.ok) throw new Error('分析に失敗しました');
+
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = '';
+    let fullText = '';
+    let firstChunk = true;
+    let hasError = false;
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split('\n');
+      buffer = lines.pop();
+
+      for (const line of lines) {
+        if (!line.startsWith('data: ')) continue;
+        try {
+          const parsed = JSON.parse(line.slice(6));
+
+          if (parsed.type === 'text') {
+            if (firstChunk) {
+              clearTimeout(stepTimer);
+              // ローディング非表示・コンテンツ表示
+              document.getElementById('loadingState').style.display = 'none';
+              const contentEl = document.getElementById('resultContent');
+              contentEl.style.display = 'block';
+              contentEl.innerHTML = '<span class="typing-cursor"></span>';
+              firstChunk = false;
+            }
+            fullText += parsed.content;
+            const contentEl = document.getElementById('resultContent');
+            contentEl.innerHTML = parseMarkdown(fullText) + '<span class="typing-cursor"></span>';
+            window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
+
+          } else if (parsed.type === 'error') {
+            hasError = true;
+            clearTimeout(stepTimer);
+            document.getElementById('loadingState').style.display = 'none';
+            const contentEl = document.getElementById('resultContent');
+            contentEl.style.display = 'block';
+            contentEl.innerHTML = `
+              <div style="text-align:center;padding:40px">
+                <p style="font-size:32px;margin-bottom:16px">⚠️</p>
+                <p style="font-size:16px;color:#fca5a5;margin-bottom:20px;line-height:1.7">${parsed.content}</p>
+                <a href="/" style="color:var(--x-blue);text-decoration:none;border:1px solid rgba(29,155,240,0.4);padding:10px 24px;border-radius:20px;font-size:14px">← フォームに戻る</a>
+              </div>`;
+
+          } else if (parsed.type === 'done') {
+            clearTimeout(stepTimer);
+            if (!hasError) {
+              const contentEl = document.getElementById('resultContent');
+              contentEl.innerHTML = parseMarkdown(fullText);
+            }
+            document.getElementById('actions').style.display = 'flex';
+            sessionStorage.removeItem('analyzeData');
+          }
+
+        } catch (e) {
+          // JSON parse error - skip
+        }
+      }
+    }
+
+  } catch (err) {
+    clearTimeout(stepTimer);
+    document.getElementById('loadingState').innerHTML = `
+      <div style="text-align:center;padding:40px">
+        <p style="color:#fca5a5;font-size:16px;margin-bottom:16px">⚠️ 接続エラーが発生しました</p>
+        <a href="/" style="color:var(--x-blue);text-decoration:none">← フォームに戻る</a>
+      </div>`;
+    console.error(err);
+  }
+}
+
+startAnalysis();
+</script>
+</body>
+</html>
